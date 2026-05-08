@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Журнал посетителей</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 24px;
+    color: #1f2937;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: #fff;
+    padding: 28px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 { font-size: 26px; font-weight: 700; display: flex; align-items: center; gap: 12px;}
+  header p { opacity: 0.9; margin-top: 4px; font-size: 14px; }
+  .header-meta { text-align: right; font-size: 12px; opacity: 0.9; }
+  .header-meta .live-dot {
+    display: inline-block; width: 8px; height: 8px;
+    background: #4ade80; border-radius: 50%;
+    margin-right: 6px; animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  .header-unread {
+    background: #ef4444; color: #fff;
+    font-size: 12px; font-weight: 700;
+    padding: 2px 10px; border-radius: 12px;
+    display: none;
+  }
+  .header-unread.visible { display: inline-block; }
+
+  /* === Справочник офисов: блок-карточки === */
+  .directory {
+    padding: 24px 32px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .directory-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .office-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .office-card {
+    background: linear-gradient(135deg, #f5f3ff 0%, #faf5ff 100%);
+    border: 1px solid #ede9fe;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .office-card:hover {
+    border-color: #a78bfa;
+    box-shadow: 0 6px 18px rgba(124,58,237,0.15);
+    transform: translateY(-2px);
+  }
+  .office-card.active {
+    border-color: #7c3aed;
+    background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+  }
+  .office-card .name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 4px;
+  }
+  .office-card .address {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 12px;
+  }
+  .office-card .metrics {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .office-card .metric .num {
+    font-size: 18px;
+    font-weight: 700;
+    color: #5b21b6;
+  }
+  .office-card .metric .lbl {
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-size: 10px;
+  }
+  .office-card .last {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #4b5563;
+    border-top: 1px dashed #d1d5db;
+    padding-top: 8px;
+  }
+  .office-card .unread-pill {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    display: none;
+  }
+  .office-card .unread-pill.visible { display: inline-block; }
+
+  /* === Вкладки офисов === */
+  .office-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 32px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    overflow-x: auto;
+  }
+  .office-tab {
+    padding: 14px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .office-tab:hover { color: #1f2937; }
+  .office-tab.active {
+    color: #4f46e5;
+    border-bottom-color: #4f46e5;
+    font-weight: 600;
+  }
+  .office-tab .count {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    background: #e5e7eb;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #4b5563;
+  }
+  .office-tab.active .count { background: #ddd6fe; color: #5b21b6; }
+  .office-tab .unread-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 8px;
+    min-width: 16px;
+    text-align: center;
+    display: none;
+  }
+  .office-tab .unread-dot.visible { display: inline-block; }
+
+  .office-info {
+    padding: 12px 32px;
+    background: #eef2ff;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 13px;
+    color: #4338ca;
+    display: none;
+  }
+  .office-info.visible { display: block; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 24px 32px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .stat-card {
+    background: #fff;
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+  }
+  .stat-card .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 24px; font-weight: 700; color: #1f2937; margin-top: 4px; }
+  .stat-card.unread .value { color: #ef4444; }
+
+  .filter-bar {
+    padding: 16px 32px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-bar input {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .filter-bar select {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .btn {
+    padding: 8px 16px;
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn:hover { background: #4338ca; }
+  .btn-secondary { background: #fff; color: #4f46e5; border: 1px solid #4f46e5; }
+  .btn-secondary:hover { background: #eef2ff; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: #f3f4f6; }
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 14px;
+    color: #1f2937;
+  }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #f9fafb; }
+  tbody tr.unread {
+    background: #fffbeb;
+    font-weight: 500;
+  }
+  tbody tr.unread:hover { background: #fef3c7; }
+  tbody tr.unread td:first-child {
+    border-left: 3px solid #f59e0b;
+    padding-left: 13px;
+  }
+  .new-badge {
+    display: inline-block;
+    background: #f59e0b;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 6px;
+    text-transform: uppercase;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .badge-meeting { background: #dbeafe; color: #1e40af; }
+  .badge-interview { background: #fef3c7; color: #92400e; }
+  .badge-delivery { background: #d1fae5; color: #065f46; }
+  .badge-other { background: #e5e7eb; color: #374151; }
+  .badge-office { background: #ede9fe; color: #5b21b6; }
+  .badge-unknown-office { background: #fee2e2; color: #991b1b; }
+
+  .key-link {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  .empty, .error-state {
+    text-align: center;
+    padding: 48px;
+    color: #9ca3af;
+    display: none;
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .error-state { color: #b91c1c; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>
+          Журнал посетителей
+          <span class="header-unread" id="header-unread">0 новых</span>
+        </h1>
+        <p>Данные синхронизированы из Jira</p>
+      </div>
+      <div class="header-meta">
+        <span class="live-dot"></span><span>обновляется автоматически</span>
+        <div id="updated-at" style="margin-top:4px;"></div>
+      </div>
+    </header>
+
+    <!-- ============================================================ -->
+    <!-- БЛОК: Справочник офисов (карточки)                           -->
+    <!-- ============================================================ -->
+    <section class="directory">
+      <div class="directory-title">
+        <span>Справочник офисов</span>
+        <span style="font-size:11px; color:#9ca3af;">кликни на карточку чтобы перейти к офису</span>
+      </div>
+      <div class="office-cards" id="office-cards"></div>
+    </section>
+
+    <!-- Вкладки офисов: быстрое переключение -->
+    <div class="office-tabs" id="office-tabs"></div>
+    <div class="office-info" id="office-info"></div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="label">Всего</div>
+        <div class="value" id="stat-total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Сегодня</div>
+        <div class="value" id="stat-today">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">За эту неделю</div>
+        <div class="value" id="stat-week">0</div>
+      </div>
+      <div class="stat-card unread">
+        <div class="label">Не прочитано</div>
+        <div class="value" id="stat-unread">0</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" id="search" placeholder="Поиск по имени, встречающему или цели..." />
+      <select id="filter-purpose">
+        <option value="">Все цели</option>
+        <option value="meeting">Встреча</option>
+        <option value="interview">Собеседование</option>
+        <option value="delivery">Доставка</option>
+        <option value="other">Другое</option>
+      </select>
+      <select id="filter-unread">
+        <option value="">Все записи</option>
+        <option value="unread">Только новые</option>
+      </select>
+      <button class="btn btn-secondary" onclick="markAllAsRead()">Отметить всё прочитанным</button>
+      <button class="btn" onclick="location.reload()">Обновить</button>
+    </div>
+
+    <table id="visitor-table-el">
+      <thead>
+        <tr>
+          <th>Тикет</th>
+          <th>Имя гостя</th>
+          <th>Офис</th>
+          <th>Дата прихода</th>
+          <th>Время прихода</th>
+          <th>Кто встречает</th>
+          <th>Цель визита</th>
+        </tr>
+      </thead>
+      <tbody id="visitor-table"></tbody>
+    </table>
+    <div class="empty" id="empty-state">
+      <div class="empty-icon">📋</div>
+      <div>Записей не найдено</div>
+    </div>
+    <div class="error-state" id="error-state">
+      <div class="empty-icon">⚠️</div>
+      <div>Не удалось загрузить данные. Запустите <code>python update_visitors.py</code></div>
+    </div>
+  </div>
+
+<!-- Данные генерируются скриптом update_visitors.py -->
+<script src="visitors.js" onerror="document.getElementById('error-state').style.display='block'"></script>
+
+<script>
+  const purposeLabels = {
+    meeting:   { label: 'Встреча',       class: 'badge-meeting'   },
+    interview: { label: 'Собеседование', class: 'badge-interview' },
+    delivery:  { label: 'Доставка',      class: 'badge-delivery'  },
+    other:     { label: 'Другое',        class: 'badge-other'     }
+  };
+
+  const AUTO_REFRESH_MIN = 5;
+
+  // ====== Активный офис ======
+  let activeOffice = localStorage.getItem('activeOffice') || 'all';
+
+  // ====================================================================
+  // ОТМЕТКА ПРОЧИТАННОГО
+  // Храним в localStorage множество ключей Jira-задач, которые уже видели.
+  // Запись считается "новой" (непрочитанной), если её ключа нет в этом
+  // множестве. При первом запуске бутстрапим всё текущее как прочитанное,
+  // чтобы не получить кучу NEW сразу.
+  // ====================================================================
+  function loadSeenKeys() {
+    try {
+      const raw = localStorage.getItem('seenVisitorKeys');
+      const arr = raw ? JSON.parse(raw) : [];
+      return new Set(arr);
+    } catch { return new Set(); }
+  }
+  function saveSeenKeys(set) {
+    localStorage.setItem('seenVisitorKeys', JSON.stringify([...set]));
+  }
+  let seenKeys = loadSeenKeys();
+
+  function isUnread(v) { return v.key && !seenKeys.has(v.key); }
+
+  function markAllAsRead() {
+    const visitors = (getData().visitors || []);
+    visitors.forEach(v => { if (v.key) seenKeys.add(v.key); });
+    saveSeenKeys(seenKeys);
+    render();
+    renderOfficeCards();
+    renderOfficeTabs();
+  }
+
+  function markAsRead(key) {
+    if (!key || seenKeys.has(key)) return;
+    seenKeys.add(key);
+    saveSeenKeys(seenKeys);
+  }
+
+  // ====== Утилиты ======
+  function getData() {
+    if (window.VISITORS_DATA) return window.VISITORS_DATA;
+    return { updatedAt: '', offices: [], visitors: [] };
+  }
+  function getOffices() {
+    const data = getData();
+    return Array.isArray(data.offices) ? data.offices : [];
+  }
+  function findOffice(id) { return getOffices().find(o => o.id === id); }
+  function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  function formatDateTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+  function isToday(dateStr) {
+    if (!dateStr) return false;
+    return dateStr.slice(0, 10) === new Date().toISOString().split('T')[0];
+  }
+  function isThisWeek(dateStr) {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return false;
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return d >= weekAgo && d <= now;
+  }
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+  function getVisitorsForOffice(officeId) {
+    const all = getData().visitors || [];
+    return officeId === 'all' ? all : all.filter(v => v.office === officeId);
+  }
+
+  // ====================================================================
+  // СПРАВОЧНИК ОФИСОВ — карточки на главной странице
+  // ====================================================================
+  function renderOfficeCards() {
+    const wrap = document.getElementById('office-cards');
+    const offices = getOffices();
+    const all = getData().visitors || [];
+    if (!offices.length) {
+      wrap.innerHTML = '<div style="color:#9ca3af; font-size:13px;">Справочник офисов пуст. Настройте OFFICES в update_visitors.py</div>';
+      return;
+    }
+
+    wrap.innerHTML = '';
+    offices.forEach(office => {
+      const list = all.filter(v => v.office === office.id);
+      const today = list.filter(v => isToday(v.date)).length;
+      const week  = list.filter(v => isThisWeek(v.date)).length;
+      const unread = list.filter(isUnread).length;
+
+      const sorted = [...list].sort((a, b) => {
+        const dCmp = (b.date || '').localeCompare(a.date || '');
+        if (dCmp !== 0) return dCmp;
+        return (b.time || '').localeCompare(a.time || '');
+      });
+      const lastVisit = sorted[0];
+      const lastTxt = lastVisit
+        ? `Последний: ${escapeHtml(lastVisit.name)} — ${formatDate(lastVisit.date)} ${escapeHtml(lastVisit.time || '')}`
+        : 'Визитов ещё не было';
+
+      const card = document.createElement('div');
+      card.className = 'office-card' + (activeOffice === office.id ? ' active' : '');
+      card.innerHTML = `
+        <span class="unread-pill ${unread > 0 ? 'visible' : ''}">${unread} новых</span>
+        <div class="name">${escapeHtml(office.name)}</div>
+        <div class="address">${escapeHtml(office.address || '')}</div>
+        <div class="metrics">
+          <div class="metric"><div class="num">${list.length}</div><div class="lbl">Всего</div></div>
+          <div class="metric"><div class="num">${today}</div><div class="lbl">Сегодня</div></div>
+          <div class="metric"><div class="num">${week}</div><div class="lbl">Неделя</div></div>
+        </div>
+        <div class="last">${lastTxt}</div>
+      `;
+      card.onclick = () => setActiveOffice(office.id);
+      wrap.appendChild(card);
+    });
+  }
+
+  // ====== Вкладки офисов с непрочитанными ======
+  function renderOfficeTabs() {
+    const tabs = document.getElementById('office-tabs');
+    const offices = getOffices();
+    const all = getData().visitors || [];
+    const items = [{ id: 'all', name: 'Все офисы' }, ...offices];
+
+    tabs.innerHTML = '';
+    items.forEach(office => {
+      const list = office.id === 'all' ? all : all.filter(v => v.office === office.id);
+      const unread = list.filter(isUnread).length;
+      const btn = document.createElement('button');
+      btn.className = 'office-tab' + (activeOffice === office.id ? ' active' : '');
+      btn.innerHTML = `${escapeHtml(office.name)}
+        <span class="count">${list.length}</span>
+        <span class="unread-dot ${unread > 0 ? 'visible' : ''}">${unread}</span>`;
+      btn.onclick = () => setActiveOffice(office.id);
+      tabs.appendChild(btn);
+    });
+  }
+
+  function setActiveOffice(id) {
+    activeOffice = id;
+    localStorage.setItem('activeOffice', id);
+    renderOfficeCards();
+    renderOfficeTabs();
+    render();
+  }
+
+  function renderOfficeInfo() {
+    const info = document.getElementById('office-info');
+    if (activeOffice === 'all') {
+      info.classList.remove('visible');
+      info.textContent = '';
+      return;
+    }
+    const office = findOffice(activeOffice);
+    if (!office) { info.classList.remove('visible'); return; }
+    info.classList.add('visible');
+    const addr = office.address ? ' — ' + office.address : '';
+    info.textContent = `📍 ${office.name}${addr}`;
+  }
+
+  // ====== Статистика + бейдж в шапке ======
+  function updateStats(visitors) {
+    document.getElementById('stat-total').textContent = visitors.length;
+    document.getElementById('stat-today').textContent = visitors.filter(v => isToday(v.date)).length;
+    document.getElementById('stat-week').textContent = visitors.filter(v => isThisWeek(v.date)).length;
+    document.getElementById('stat-unread').textContent = visitors.filter(isUnread).length;
+
+    const totalUnread = (getData().visitors || []).filter(isUnread).length;
+    const headerBadge = document.getElementById('header-unread');
+    if (totalUnread > 0) {
+      headerBadge.classList.add('visible');
+      headerBadge.textContent = `${totalUnread} новых`;
+    } else {
+      headerBadge.classList.remove('visible');
+    }
+  }
+
+  // ====== Таблица ======
+  function render() {
+    const data = getData();
+    document.getElementById('updated-at').textContent =
+      data.updatedAt ? 'обновлено: ' + formatDateTime(data.updatedAt) : '';
+
+    if (!window.VISITORS_DATA) {
+      document.getElementById('visitor-table-el').style.display = 'none';
+      document.getElementById('error-state').style.display = 'block';
+      return;
+    }
+
+    renderOfficeInfo();
+
+    const search = document.getElementById('search').value.toLowerCase();
+    const filterPurpose = document.getElementById('filter-purpose').value;
+    const filterUnread = document.getElementById('filter-unread').value;
+    const tbody = document.getElementById('visitor-table');
+    const tableEl = document.getElementById('visitor-table-el');
+    const emptyState = document.getElementById('empty-state');
+
+    let scoped = getVisitorsForOffice(activeOffice);
+    let filtered = [...scoped].sort((a, b) => {
+      const dateCmp = (b.date || '').localeCompare(a.date || '');
+      if (dateCmp !== 0) return dateCmp;
+      return (b.time || '').localeCompare(a.time || '');
+    });
+
+    if (search) {
+      filtered = filtered.filter(v =>
+        (v.name || '').toLowerCase().includes(search) ||
+        (v.host || '').toLowerCase().includes(search) ||
+        (purposeLabels[v.purpose] && purposeLabels[v.purpose].label.toLowerCase().includes(search))
+      );
+    }
+    if (filterPurpose) filtered = filtered.filter(v => v.purpose === filterPurpose);
+    if (filterUnread === 'unread') filtered = filtered.filter(isUnread);
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+      emptyState.style.display = 'block';
+      tableEl.style.display = 'none';
+    } else {
+      emptyState.style.display = 'none';
+      tableEl.style.display = '';
+      filtered.forEach(v => {
+        const tr = document.createElement('tr');
+        if (isUnread(v)) tr.className = 'unread';
+        const p = purposeLabels[v.purpose] || purposeLabels.other;
+        const office = findOffice(v.office);
+        const officeBadge = office
+          ? `<span class="badge badge-office">${escapeHtml(office.name)}</span>`
+          : `<span class="badge badge-unknown-office">${escapeHtml(v.office || 'не указан')}</span>`;
+        const newBadge = isUnread(v) ? '<span class="new-badge">new</span>' : '';
+        tr.innerHTML = `
+          <td><span class="key-link">${escapeHtml(v.key || '')}</span>${newBadge}</td>
+          <td><strong>${escapeHtml(v.name)}</strong></td>
+          <td>${officeBadge}</td>
+          <td>${formatDate(v.date)}</td>
+          <td>${escapeHtml(v.time || '')}</td>
+          <td>${escapeHtml(v.host || '')}</td>
+          <td><span class="badge ${p.class}">${p.label}</span></td>
+        `;
+        tr.title = 'Кликни, чтобы отметить прочитанным';
+        tr.onclick = () => {
+          if (v.key && !seenKeys.has(v.key)) {
+            markAsRead(v.key);
+            tr.classList.remove('unread');
+            const badgeEl = tr.querySelector('.new-badge');
+            if (badgeEl) badgeEl.remove();
+            updateStats(scoped);
+            renderOfficeTabs();
+            renderOfficeCards();
+          }
+        };
+        tbody.appendChild(tr);
+      });
+    }
+    updateStats(scoped);
+  }
+
+  // ====== Инициализация ======
+  document.getElementById('search').addEventListener('input', render);
+  document.getElementById('filter-purpose').addEventListener('change', render);
+  document.getElementById('filter-unread').addEventListener('change', render);
+
+  renderOfficeCards();
+  renderOfficeTabs();
+  render();
+
+  setTimeout(() => location.reload(), AUTO_REFRESH_MIN * 60 * 1000);
+</script>
+</body>
+</html>
