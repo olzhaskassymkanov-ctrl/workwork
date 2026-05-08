@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Журнал посетителей</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 24px;
+    color: #1f2937;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: #fff;
+    padding: 28px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 { font-size: 26px; font-weight: 700; }
+  header p { opacity: 0.9; margin-top: 4px; font-size: 14px; }
+  .header-meta { text-align: right; font-size: 12px; opacity: 0.9; }
+  .header-meta .live-dot {
+    display: inline-block; width: 8px; height: 8px;
+    background: #4ade80; border-radius: 50%;
+    margin-right: 6px; animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  .office-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 32px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    overflow-x: auto;
+  }
+  .office-tab {
+    padding: 14px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .office-tab:hover { color: #1f2937; }
+  .office-tab.active {
+    color: #4f46e5;
+    border-bottom-color: #4f46e5;
+    font-weight: 600;
+  }
+  .office-tab .count {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    background: #e5e7eb;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #4b5563;
+  }
+  .office-tab.active .count { background: #ddd6fe; color: #5b21b6; }
+
+  .office-info {
+    padding: 12px 32px;
+    background: #eef2ff;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 13px;
+    color: #4338ca;
+    display: none;
+  }
+  .office-info.visible { display: block; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 24px 32px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .stat-card {
+    background: #fff;
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+  }
+  .stat-card .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 24px; font-weight: 700; color: #1f2937; margin-top: 4px; }
+
+  .filter-bar {
+    padding: 16px 32px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-bar input {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .filter-bar select {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .btn-reload {
+    padding: 8px 16px;
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-reload:hover { background: #4338ca; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: #f3f4f6; }
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 14px;
+    color: #1f2937;
+  }
+  tbody tr:hover { background: #f9fafb; }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .badge-meeting { background: #dbeafe; color: #1e40af; }
+  .badge-interview { background: #fef3c7; color: #92400e; }
+  .badge-delivery { background: #d1fae5; color: #065f46; }
+  .badge-other { background: #e5e7eb; color: #374151; }
+  .badge-office { background: #ede9fe; color: #5b21b6; }
+  .badge-unknown-office { background: #fee2e2; color: #991b1b; }
+
+  .key-link {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  .empty, .error-state {
+    text-align: center;
+    padding: 48px;
+    color: #9ca3af;
+    display: none;
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .error-state { color: #b91c1c; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Журнал посетителей</h1>
+        <p>Данные синхронизированы из Jira</p>
+      </div>
+      <div class="header-meta">
+        <span class="live-dot"></span><span>обновляется автоматически</span>
+        <div id="updated-at" style="margin-top:4px;"></div>
+      </div>
+    </header>
+
+    <!-- Справочник офисов: вкладки переключают активный офис -->
+    <div class="office-tabs" id="office-tabs"></div>
+    <div class="office-info" id="office-info"></div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="label">Всего посетителей</div>
+        <div class="value" id="stat-total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Сегодня</div>
+        <div class="value" id="stat-today">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">За эту неделю</div>
+        <div class="value" id="stat-week">0</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" id="search" placeholder="Поиск по имени, встречающему или цели..." />
+      <select id="filter-purpose">
+        <option value="">Все цели</option>
+        <option value="meeting">Встреча</option>
+        <option value="interview">Собеседование</option>
+        <option value="delivery">Доставка</option>
+        <option value="other">Другое</option>
+      </select>
+      <button class="btn-reload" onclick="location.reload()">Обновить</button>
+    </div>
+
+    <table id="visitor-table-el">
+      <thead>
+        <tr>
+          <th>Тикет</th>
+          <th>Имя гостя</th>
+          <th>Офис</th>
+          <th>Дата прихода</th>
+          <th>Время прихода</th>
+          <th>Кто встречает</th>
+          <th>Цель визита</th>
+        </tr>
+      </thead>
+      <tbody id="visitor-table"></tbody>
+    </table>
+    <div class="empty" id="empty-state">
+      <div class="empty-icon">📋</div>
+      <div>Записей не найдено</div>
+    </div>
+    <div class="error-state" id="error-state">
+      <div class="empty-icon">⚠️</div>
+      <div>Не удалось загрузить данные. Запустите <code>python update_visitors.py</code></div>
+    </div>
+  </div>
+
+<!-- Данные генерируются скриптом update_visitors.py -->
+<script src="visitors.js" onerror="document.getElementById('error-state').style.display='block'"></script>
+
+<script>
+  const purposeLabels = {
+    meeting: { label: 'Встреча', class: 'badge-meeting' },
+    interview: { label: 'Собеседование', class: 'badge-interview' },
+    delivery: { label: 'Доставка', class: 'badge-delivery' },
+    other: { label: 'Другое', class: 'badge-other' }
+  };
+
+  const AUTO_REFRESH_MIN = 5;
+
+  // Активный офис ('all' или id из справочника)
+  let activeOffice = localStorage.getItem('activeOffice') || 'all';
+
+  function getData() {
+    if (window.VISITORS_DATA) return window.VISITORS_DATA;
+    return { updatedAt: '', offices: [], visitors: [] };
+  }
+
+  function getOffices() {
+    const data = getData();
+    return Array.isArray(data.offices) ? data.offices : [];
+  }
+
+  function findOffice(id) {
+    return getOffices().find(o => o.id === id);
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function formatDateTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function isToday(dateStr) {
+    if (!dateStr) return false;
+    return dateStr.slice(0, 10) === new Date().toISOString().split('T')[0];
+  }
+
+  function isThisWeek(dateStr) {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return false;
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return d >= weekAgo && d <= now;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  function getVisitorsForOffice(officeId) {
+    const all = getData().visitors || [];
+    if (officeId === 'all') return all;
+    return all.filter(v => v.office === officeId);
+  }
+
+  function renderOfficeTabs() {
+    const tabs = document.getElementById('office-tabs');
+    const offices = getOffices();
+    const all = getData().visitors || [];
+    const items = [{ id: 'all', name: 'Все офисы' }, ...offices];
+
+    tabs.innerHTML = '';
+    items.forEach(office => {
+      const count = office.id === 'all' ? all.length : all.filter(v => v.office === office.id).length;
+      const btn = document.createElement('button');
+      btn.className = 'office-tab' + (activeOffice === office.id ? ' active' : '');
+      btn.innerHTML = `${escapeHtml(office.name)}<span class="count">${count}</span>`;
+      btn.onclick = () => {
+        activeOffice = office.id;
+        localStorage.setItem('activeOffice', office.id);
+        renderOfficeTabs();
+        render();
+      };
+      tabs.appendChild(btn);
+    });
+  }
+
+  function renderOfficeInfo() {
+    const info = document.getElementById('office-info');
+    if (activeOffice === 'all') {
+      info.classList.remove('visible');
+      info.textContent = '';
+      return;
+    }
+    const office = findOffice(activeOffice);
+    if (!office) {
+      info.classList.remove('visible');
+      return;
+    }
+    info.classList.add('visible');
+    const addr = office.address ? ' — ' + office.address : '';
+    info.textContent = `📍 ${office.name}${addr}`;
+  }
+
+  function updateStats(visitors) {
+    document.getElementById('stat-total').textContent = visitors.length;
+    document.getElementById('stat-today').textContent = visitors.filter(v => isToday(v.date)).length;
+    document.getElementById('stat-week').textContent = visitors.filter(v => isThisWeek(v.date)).length;
+  }
+
+  function render() {
+    const data = getData();
+    document.getElementById('updated-at').textContent =
+      data.updatedAt ? 'обновлено: ' + formatDateTime(data.updatedAt) : '';
+
+    if (!window.VISITORS_DATA) {
+      document.getElementById('visitor-table-el').style.display = 'none';
+      document.getElementById('error-state').style.display = 'block';
+      return;
+    }
+
+    renderOfficeInfo();
+
+    const search = document.getElementById('search').value.toLowerCase();
+    const filterPurpose = document.getElementById('filter-purpose').value;
+    const tbody = document.getElementById('visitor-table');
+    const tableEl = document.getElementById('visitor-table-el');
+    const emptyState = document.getElementById('empty-state');
+
+    let scoped = getVisitorsForOffice(activeOffice);
+    let filtered = [...scoped].sort((a, b) => {
+      const dateCmp = (b.date || '').localeCompare(a.date || '');
+      if (dateCmp !== 0) return dateCmp;
+      return (b.time || '').localeCompare(a.time || '');
+    });
+
+    if (search) {
+      filtered = filtered.filter(v =>
+        (v.name || '').toLowerCase().includes(search) ||
+        (v.host || '').toLowerCase().includes(search) ||
+        (purposeLabels[v.purpose] && purposeLabels[v.purpose].label.toLowerCase().includes(search))
+      );
+    }
+    if (filterPurpose) {
+      filtered = filtered.filter(v => v.purpose === filterPurpose);
+    }
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+      emptyState.style.display = 'block';
+      tableEl.style.display = 'none';
+    } else {
+      emptyState.style.display = 'none';
+      tableEl.style.display = '';
+      filtered.forEach(v => {
+        const tr = document.createElement('tr');
+        const p = purposeLabels[v.purpose] || purposeLabels.other;
+        const office = findOffice(v.office);
+        const officeBadge = office
+          ? `<span class="badge badge-office">${escapeHtml(office.name)}</span>`
+          : `<span class="badge badge-unknown-office">${escapeHtml(v.office || 'не указан')}</span>`;
+        tr.innerHTML = `
+          <td><span class="key-link">${escapeHtml(v.key || '')}</span></td>
+          <td><strong>${escapeHtml(v.name)}</strong></td>
+          <td>${officeBadge}</td>
+          <td>${formatDate(v.date)}</td>
+          <td>${escapeHtml(v.time || '')}</td>
+          <td>${escapeHtml(v.host || '')}</td>
+          <td><span class="badge ${p.class}">${p.label}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    updateStats(scoped);
+  }
+
+  document.getElementById('search').addEventListener('input', render);
+  document.getElementById('filter-purpose').addEventListener('change', render);
+
+  renderOfficeTabs();
+  render();
+
+  setTimeout(() => location.reload(), AUTO_REFRESH_MIN * 60 * 1000);
+</script>
+</body>
+</html>
